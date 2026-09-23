@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>使い方ガイド - StarPartner 動画申請アシスタント</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", sans-serif;
+    max-width: 760px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.8;
+    color: #222;
+  }
+  h1 { font-size: 24px; border-bottom: 2px solid #eee; padding-bottom: 12px; }
+  h2 { font-size: 18px; margin-top: 36px; border-left: 4px solid #4a7dff; padding-left: 10px; }
+  h3 { font-size: 15px; margin-top: 20px; }
+  .updated { color: #666; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 10px; text-align: left; font-size: 14px; vertical-align: top; }
+  th { background: #f7f7f7; white-space: nowrap; }
+  ol, ul { padding-left: 1.4em; }
+  li { margin: 6px 0; }
+  code {
+    background: #f2f2f2;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 13px;
+    word-break: break-all;
+  }
+  .note, .warn {
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .note { background: #eef5ff; border: 1px solid #cfe2ff; }
+  .warn { background: #fff3cd; border: 1px solid #ffe69c; }
+  .toc {
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+  }
+  .toc a { color: #333; }
+  img { max-width: 100%; border: 1px solid #ddd; border-radius: 4px; margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<h1>使い方ガイド</h1>
+<p class="updated">最終更新日: 2026年9月23日</p>
+
+<p>
+「StarPartner 動画申請アシスタント」は、YouTubeに投稿した動画を「スターパートナー」プログラムの
+申請フォームへ登録する作業を半自動化するChrome拡張機能です。このページでは、インストールから
+実際に使うまでの手順を説明します。
+</p>
+
+<div class="toc">
+  <strong>目次</strong>
+  <ol>
+    <li><a href="#install">インストール</a></li>
+    <li><a href="#setup">初期設定</a></li>
+    <li><a href="#usage">使い方</a></li>
+    <li><a href="#faq">よくある質問・困ったときは</a></li>
+  </ol>
+</div>
+
+<h2 id="install">1. インストール</h2>
+<ol>
+  <li>Chromeウェブストアの「StarPartner 動画申請アシスタント」のページを開く</li>
+  <li>「Chromeに追加」をクリック</li>
+  <li>確認ダイアログが出たら「拡張機能を追加」をクリック</li>
+</ol>
+<p>
+インストール後、Chromeのツールバー右上の パズルピースのアイコン（拡張機能） から
+本拡張機能を見つけてピン留めしておくと、次回から使いやすくなります。
+</p>
+
+<h2 id="setup">2. 初期設定</h2>
+<p>
+インストール後、最初に設定画面（オプションページ）で以下を入力する必要があります。
+拡張機能のアイコンを右クリック →「オプション」、または拡張機能アイコンをクリックして
+開くダッシュボード画面右上の「設定を開く」から設定画面に入れます。
+</p>
+
+<h3>2-1. 申請フォームURL（最重要）</h3>
+<div class="warn">
+  このツールには申請フォームのURLは含まれていません。<strong>ゲーム運営・プログラム管理者から
+  個別に案内されたURL</strong>を、ご自身で入力してください。URLが分からない場合は、
+  スターパートナープログラムの担当窓口にお問い合わせください。
+</div>
+
+<h3>2-2. YouTubeチャンネル名・Discord ID</h3>
+<ul>
+  <li><strong>YouTubeチャンネル名</strong>: 申請フォームにいつも記入している登録ニックネームを入力してください</li>
+  <li><strong>Discordの個人ID</strong>: Discordのデフォルト数字IDではなく、ご自身で設定したユーザー名を入力してください</li>
+</ul>
+
+<h3>2-3. YouTube Data APIキーの取得</h3>
+<p>
+動画情報を自動取得するために、ご自身のGoogleアカウントでAPIキーを発行する必要があります。
+無料で取得できます。
+</p>
+<ol>
+  <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> を開き、Googleアカウントでログイン</li>
+  <li>画面上部のプロジェクト選択メニューから「新しいプロジェクト」を作成（名前は何でも構いません）</li>
+  <li>左メニュー「APIとサービス」→「ライブラリ」を開く</li>
+  <li>検索欄に <code>YouTube Data API v3</code> と入力して検索し、表示された項目を開く</li>
+  <li>「有効にする」をクリック</li>
+  <li>左メニュー「APIとサービス」→「認証情報」を開く</li>
+  <li>「+ 認証情報を作成」→「APIキー」を選択</li>
+  <li>表示されたAPIキーをコピーし、拡張機能の設定画面「APIキー」欄に貼り付け</li>
+</ol>
+<div class="note">
+  請求先アカウント（クレジットカード）の登録を求められる場合がありますが、YouTube Data API v3は
+  1日10,000ユニットまで無料で利用できる範囲内であれば課金は発生しません。
+</div>
+
+<h3>2-4. 自分のYouTubeチャンネルIDの確認</h3>
+<p>以下のいずれかの方法で確認できます。</p>
+<ol>
+  <li>
+    <strong>YouTube Studioから（確実）</strong>:
+    <a href="https://studio.youtube.com/" target="_blank">YouTube Studio</a> を開く →
+    左下の「設定」→「チャンネル」→「詳細設定」→ <code>UC</code> から始まる「チャンネルID」をコピー
+  </li>
+  <li>
+    <strong>チャンネルページのURLから</strong>: 自分のチャンネルページのURLが
+    <code>https://www.youtube.com/channel/UCxxxxxxxxxxxxxxxxxxxxxx</code> の形式なら、
+    その <code>UCxxxxxxxxxxxxxxxxxxxxxx</code> の部分がチャンネルIDです
+    （<code>@名前</code> 形式のカスタムURLの場合はこの方法では確認できないため、上記のYouTube Studioの方法を使ってください）
+  </li>
+</ol>
+
+<h3>2-5. 検索キーワード・カテゴリ自動推測ルール</h3>
+<p>
+検索キーワード欄には、申請対象の動画に必ず含めているタグ・キーワード（例: 運営指定のハッシュタグ）を
+入力してください。ここに入れたキーワードが動画タイトルに含まれる動画だけが取得対象になります。
+</p>
+<p>
+「投稿内容カテゴリの自動推測ルール」は、動画タイトルに含まれる単語から申請フォームの
+「投稿内容」欄の選択肢を自動で推測するための設定です。デフォルトである程度用意されていますが、
+ご自身の投稿傾向に合わせて調整してください（一覧画面で毎回手動修正も可能です）。
+</p>
+
+<p>すべて入力したら「保存」を押してください。</p>
+
+<h2 id="usage">3. 使い方</h2>
+<ol>
+  <li>拡張機能アイコンをクリックしてダッシュボードを開く</li>
+  <li>「対象年月」を選び、「動画を取得」をクリック</li>
+  <li>設定したキーワードを含む動画が一覧表示されます。ビデオタイプ・投稿内容カテゴリは自動推測されるので、内容を確認し、必要であればプルダウンで修正してください</li>
+  <li>送信したい動画にチェックを入れる（送信済みの動画は自動的にグレーアウトされ、対象から外れます）</li>
+  <li>「選択した動画を一括送信」をクリック</li>
+  <li>拡張機能が1件ずつ申請フォームのタブを自動で開き、入力・送信します。完了すると一覧の「状態」欄が更新されます</li>
+</ol>
+
+<div class="warn">
+  <strong>全自動で無人送信され続けるわけではありません。</strong>
+  何らかの理由で入力・送信に失敗した場合は、そこで自動処理が止まり、該当のタブが開いたままになります。
+  その場合はタブの内容を確認し、手動で完了させてから、必要であれば残りの動画を選び直してもう一度
+  「一括送信」を実行してください。
+</div>
+
+<h2 id="faq">4. よくある質問・困ったときは</h2>
+
+<h3>Q. 動画が1件も取得できない</h3>
+<ul>
+  <li>設定画面のAPIキー・チャンネルID・検索キーワードが正しいか確認してください</li>
+  <li>検索キーワードは動画の<strong>タイトル</strong>に含まれている必要があります（概要欄は対象外です）</li>
+  <li>対象年月の選択が正しいか確認してください</li>
+</ul>
+
+<h3>Q. フォームへの入力の途中でエラーになる</h3>
+<ul>
+  <li>申請フォームURLが正しいか、設定画面で確認してください</li>
+  <li>フォーム側の仕様変更などで自動入力が動かなくなっている可能性があります。エラーメッセージの内容とあわせて、開発者にご連絡ください</li>
+</ul>
+
+<h3>Q.「以前の入力を続けますか？」という確認画面が出た</h3>
+<p>
+これは申請フォーム側の仕様で、以前に途中まで入力した記録が残っていると表示されます。
+本拡張機能は自動的に「最初から」を選んで進めるので、通常は気にする必要はありません。
+</p>
+
+<h3>Q. 同じ動画を二重に申請してしまわないか心配</h3>
+<p>
+送信が完了した動画は拡張機能内に記録され、次回以降の一覧では自動的に「送信済み」表示になり、
+デフォルトでは選択対象から外れます（手動でチェックを入れれば再送信も可能です）。
+</p>
+
+<h3>その他のお問い合わせ</h3>
+<p>
+上記で解決しない場合は、
+<a href="https://github.com/mizuha-kusunoki-v/starward_starpartner_assistapp/issues" target="_blank">GitHubのIssue</a>
+からご連絡ください。
+</p>
+
+</body>
+</html>

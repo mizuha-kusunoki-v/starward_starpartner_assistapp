@@ -96,6 +96,7 @@ npm run build
 
 ## 公開・配布
 
+- [使い方ガイド（非技術者向け）](docs/user-guide.html) — インストールから設定・使い方までの一般利用者向けマニュアル
 - [プライバシーポリシー](docs/privacy-policy.html)
 - [Chromeウェブストア申請ガイド](docs/chrome-web-store-submission.md)（審査に必要な説明文・手順まとめ）
 - タグ(`v*.*.*`)をpushすると、GitHub Actionsが自動でビルドし、zip化した拡張機能パッケージを
