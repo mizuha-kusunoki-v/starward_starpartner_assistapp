@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "StarPartner 動画申請アシスタント",
+  "version": "0.1.0",
+  "description": "YouTube動画を検索し、スターパートナー申請フォームへの転記・送信を半自動化します。",
+  "action": {
+    "default_title": "StarPartner ダッシュボードを開く"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "options_page": "options/options.html",
+  "permissions": ["storage", "scripting", "tabs"],
+  "host_permissions": [
+    "https://wj.qq.com/*",
+    "https://www.googleapis.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://wj.qq.com/*"],
+      "js": ["content/formFiller.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

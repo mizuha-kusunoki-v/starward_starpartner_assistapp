@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>StarPartner ダッシュボード</title>
+<link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header>
+    <h1>StarPartner 動画申請ダッシュボード</h1>
+    <a href="../options/options.html" target="_blank">設定を開く</a>
+  </header>
+
+  <div id="settingsWarning" class="warning" hidden>
+    設定が不足しています。<a href="../options/options.html" target="_blank">設定ページ</a> で
+    申請フォームURL・APIキー・チャンネルID・チャンネル名・Discord IDを入力してください。
+  </div>
+
+  <section class="fetch-bar">
+    <label>
+      対象年月
+      <input type="month" id="monthInput" />
+    </label>
+    <button type="button" id="fetchBtn">動画を取得</button>
+    <span id="fetchStatus"></span>
+  </section>
+
+  <section>
+    <div class="table-actions">
+      <label><input type="checkbox" id="selectAll" /> 全選択</label>
+      <button type="button" id="submitBtn" disabled>選択した動画を一括送信</button>
+      <span id="submitStatus"></span>
+    </div>
+    <table id="videoTable">
+      <thead>
+        <tr>
+          <th></th>
+          <th>サムネイル</th>
+          <th>タイトル</th>
+          <th>公開日</th>
+          <th>動画リンク</th>
+          <th>ビデオタイプ</th>
+          <th>投稿内容カテゴリ</th>
+          <th>状態</th>
+        </tr>
+      </thead>
+      <tbody id="videoRows"></tbody>
+    </table>
+  </section>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

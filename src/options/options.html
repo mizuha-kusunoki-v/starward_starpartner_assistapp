@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<title>StarPartner 設定</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1 { font-size: 18px; }
+  fieldset { margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; }
+  label { display: block; margin: 10px 0 4px; font-size: 13px; color: #444; }
+  input[type=text], input[type=password] { width: 100%; padding: 6px 8px; box-sizing: border-box; font-size: 14px; }
+  .hint { font-size: 12px; color: #888; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  td, th { border: 1px solid #ddd; padding: 4px 6px; font-size: 13px; }
+  button { padding: 6px 14px; font-size: 14px; cursor: pointer; }
+  #status { margin-left: 10px; font-size: 13px; color: green; }
+  .row-actions { text-align: center; }
+</style>
+</head>
+<body>
+  <h1>StarPartner 動画申請アシスタント - 設定</h1>
+
+  <fieldset>
+    <legend>申請フォーム</legend>
+    <label for="formUrl">申請フォームURL</label>
+    <input type="text" id="formUrl" placeholder="https://wj.qq.com/s2/..." />
+    <div class="hint">運営から個別に案内されたURLを入力してください。このURLはソースコードには含まれていません。</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>固定情報</legend>
+    <label for="channelName">YouTubeチャンネル名（フォームに転記する登録ニックネーム）</label>
+    <input type="text" id="channelName" />
+
+    <label for="discordId">DiscordのID</label>
+    <input type="text" id="discordId" />
+  </fieldset>
+
+  <fieldset>
+    <legend>YouTube Data API</legend>
+    <label for="youtubeApiKey">APIキー</label>
+    <input type="password" id="youtubeApiKey" />
+    <div class="hint">Google Cloud Console で YouTube Data API v3 を有効化して取得したAPIキー</div>
+
+    <label for="youtubeChannelId">自分のチャンネルID（UCで始まるID）</label>
+    <input type="text" id="youtubeChannelId" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx" />
+
+    <label for="searchKeywords">検索キーワード（カンマ区切り、複数可）</label>
+    <input type="text" id="searchKeywords" placeholder="星の翼" />
+    <div class="hint">いずれかのキーワードにヒットした動画を月次取得の対象にします</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>投稿内容カテゴリの自動推測ルール</legend>
+    <div class="hint">動画タイトルに含まれるキーワードで、上の行から順に判定します。どれにもマッチしない場合は「その他」になります。</div>
+    <table id="categoryTable">
+      <thead><tr><th>カテゴリ</th><th>キーワード（カンマ区切り）</th><th></th></tr></thead>
+      <tbody id="categoryRows"></tbody>
+    </table>
+    <button type="button" id="addRuleBtn">+ ルールを追加</button>
+  </fieldset>
+
+  <button type="button" id="saveBtn">保存</button>
+  <span id="status"></span>
+
+  <script src="options.js"></script>
+</body>
+</html>
