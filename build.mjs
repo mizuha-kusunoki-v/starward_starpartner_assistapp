@@ -30,6 +30,7 @@ function copyStaticAssets() {
   cpSync("src/dashboard/dashboard.html", "dist/dashboard/dashboard.html");
   cpSync("src/dashboard/dashboard.css", "dist/dashboard/dashboard.css");
   cpSync("manifest.json", "dist/manifest.json");
+  cpSync("icons", "dist/icons", { recursive: true });
 }
 
 if (watch) {
