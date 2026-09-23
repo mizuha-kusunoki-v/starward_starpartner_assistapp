@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "StarPartner 動画申請アシスタント",
+  "name": "星の翼 スターパートナー 動画・配信申請アシスト",
   "version": "0.1.0",
   "description": "YouTube動画を検索し、スターパートナー申請フォームへの転記・送信を半自動化します。",
   "icons": {
@@ -9,7 +9,7 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_title": "StarPartner ダッシュボードを開く",
+    "default_title": "星の翼 スターパートナー 動画・配信申請アシスト - ダッシュボードを開く",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
