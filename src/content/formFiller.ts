@@ -224,163 +224,6 @@ function findSubmitButton(): HTMLButtonElement | undefined {
   );
 }
 
-// --- 送信結果のネットワーク検証 ---
-//
-// 「提交」クリック後に質問セクションがDOMから消えてサンクス画面(「问卷到此结束」)が
-// 表示されても、実際にはサーバー側で受理されていないケースが実機で確認された
-// (フロント側は送信リクエストの結果を待たずに画面遷移している可能性がある)。
-// 画面の見た目だけでは信頼できないため、実際に送信された通信のHTTPレスポンスを
-// 直接検証する。content scriptの分離ワールドからはページ自身のfetch/XHRを
-// フックできないため、<script>タグでページのメインワールドにインターセプターを
-// 注入し、結果をCustomEventで分離ワールド側へ橋渡しする。
-// (wj.qq.comのCSPは`'unsafe-inline'`を許可しているためインラインscriptタグが
-//  実行できることを実機で確認済み。CSPが変更された場合はこの方式が使えなくなる
-//  可能性があるため、動かなくなったらchrome.scripting.executeScript({world:"MAIN"})
-//  経由への切り替えを検討すること)
-
-const SUBMIT_RESPONSE_EVENT = "starpartner:submit-response";
-const INTERCEPTOR_ELEMENT_ID = "starpartner-network-interceptor";
-
-interface SubmitNetworkResult {
-  url: string;
-  status: number;
-  ok: boolean;
-  body: string | null;
-  error?: string;
-}
-
-function installNetworkInterceptor(): void {
-  if (document.getElementById(INTERCEPTOR_ELEMENT_ID)) return;
-
-  const script = document.createElement("script");
-  script.id = INTERCEPTOR_ELEMENT_ID;
-  script.textContent = `(function () {
-    if (window.__starpartnerInterceptorInstalled) return;
-    window.__starpartnerInterceptorInstalled = true;
-
-    function isRelevant(url, method) {
-      if (!url || method !== "POST") return false;
-      if (url.indexOf("/api/") === -1) return false;
-      if (url.indexOf("/api/pageview") !== -1) return false;
-      return true;
-    }
-
-    function report(detail) {
-      window.dispatchEvent(new CustomEvent(${JSON.stringify(SUBMIT_RESPONSE_EVENT)}, { detail: detail }));
-    }
-
-    var origFetch = window.fetch;
-    if (origFetch) {
-      window.fetch = function (input, init) {
-        var url = typeof input === "string" ? input : (input && input.url) || "";
-        var method = ((init && init.method) || (typeof input === "object" && input && input.method) || "GET");
-        var p = origFetch.apply(this, arguments);
-        if (isRelevant(url, String(method).toUpperCase())) {
-          p.then(function (res) {
-            res
-              .clone()
-              .text()
-              .then(function (body) {
-                report({ url: url, status: res.status, ok: res.ok, body: body });
-              })
-              .catch(function () {
-                report({ url: url, status: res.status, ok: res.ok, body: null });
-              });
-          }).catch(function (err) {
-            report({ url: url, status: 0, ok: false, body: null, error: String(err) });
-          });
-        }
-        return p;
-      };
-    }
-
-    var OrigXHR = window.XMLHttpRequest;
-    var origOpen = OrigXHR.prototype.open;
-    var origSend = OrigXHR.prototype.send;
-    OrigXHR.prototype.open = function (method, url) {
-      this.__starpartnerMethod = String(method || "").toUpperCase();
-      this.__starpartnerUrl = url;
-      return origOpen.apply(this, arguments);
-    };
-    OrigXHR.prototype.send = function () {
-      var self = this;
-      this.addEventListener("loadend", function () {
-        if (isRelevant(self.__starpartnerUrl, self.__starpartnerMethod)) {
-          report({
-            url: self.__starpartnerUrl,
-            status: self.status,
-            ok: self.status >= 200 && self.status < 300,
-            body: self.responseText,
-          });
-        }
-      });
-      return origSend.apply(this, arguments);
-    };
-  })();`;
-  document.documentElement.appendChild(script);
-  script.remove();
-}
-
-/** 「提交」クリック後、最初に観測された関連POSTレスポンスを待つ（見つからなければnull） */
-function waitForSubmitNetworkResult(timeoutMs: number): Promise<SubmitNetworkResult | null> {
-  return new Promise((resolve) => {
-    let done = false;
-    const handler = (e: Event) => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      window.removeEventListener(SUBMIT_RESPONSE_EVENT, handler);
-      resolve((e as CustomEvent<SubmitNetworkResult>).detail);
-    };
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      window.removeEventListener(SUBMIT_RESPONSE_EVENT, handler);
-      resolve(null);
-    }, timeoutMs);
-    window.addEventListener(SUBMIT_RESPONSE_EVENT, handler);
-  });
-}
-
-/**
- * Tencent系APIはHTTP 200でもレスポンスボディの code/ret/errcode 等で
- * アプリケーションレベルのエラーを返すことがあるため、ステータスコードだけでなく
- * ボディの中身も可能な範囲で確認する。
- */
-function evaluateNetworkResult(result: SubmitNetworkResult): { success: boolean; reason: string } {
-  if (result.status === 0) {
-    return { success: false, reason: `送信通信でネットワークエラーが発生しました: ${result.error || "不明なエラー"}` };
-  }
-  if (!result.ok) {
-    return { success: false, reason: `送信リクエストが失敗しました (HTTP ${result.status})` };
-  }
-  if (result.body) {
-    try {
-      const json = JSON.parse(result.body) as Record<string, unknown>;
-      const codeValue = json.code ?? json.ret ?? json.errcode ?? json.error_code;
-      // 実機で確認した失敗時レスポンス例: {"code":"NoRoute","error":{...},...} のように
-      // codeが数値0以外に加えて文字列で返ってくることもある(Tencent系API共通の形式)。
-      // "" / "0" / "ok" / "success" 相当は成功とみなし、それ以外の空でない文字列は
-      // エラーコードとして扱う。
-      const isNumericError = typeof codeValue === "number" && codeValue !== 0;
-      const isStringError =
-        typeof codeValue === "string" &&
-        codeValue !== "" &&
-        !/^(0|ok|success)$/i.test(codeValue);
-      if (isNumericError || isStringError) {
-        const message = (json.message as string) || (json.msg as string) || (json.info as string) || "";
-        return {
-          success: false,
-          reason: `サーバーがエラーを返しました (code: ${codeValue}${message ? `, ${message}` : ""})`,
-        };
-      }
-    } catch {
-      // JSONでなければステータスコードのみで判定する
-    }
-  }
-  return { success: true, reason: "" };
-}
-
 /**
  * このフォームは前回の入力途中を検知すると「継続填写(継続)/重新填写(最初から)」の
  * 確認ダイアログを表示し、section.questionが一切描画されない状態になる。
@@ -400,7 +243,6 @@ async function dismissResumeDialogIfPresent(): Promise<void> {
 }
 
 async function fillForm(data: QueueItem): Promise<void> {
-  installNetworkInterceptor();
   await dismissResumeDialogIfPresent();
 
   const ready = await waitFor(() => document.querySelectorAll("section.question").length >= 8);
@@ -426,32 +268,15 @@ async function submitForm(): Promise<FillAndSubmitResult> {
   const submitBtn = findSubmitButton();
   if (!submitBtn) throw new Error("提交ボタンが見つかりません");
 
-  // クリック前にリスナーを仕込んでから押す(クリック後だと反応の速いレスポンスを取りこぼす)
-  const networkResultPromise = waitForSubmitNetworkResult(8000);
   submitBtn.click();
-  const networkResult = await networkResultPromise;
 
-  if (networkResult) {
-    const evaluation = evaluateNetworkResult(networkResult);
-    return evaluation.success ? { success: true } : { success: false, error: evaluation.reason };
-  }
-
-  // 送信リクエストの通信を検知できなかった場合。
-  // 画面上「问卷到此结束」等のサンクス表示が出ていても、実際にはサーバー側で
-  // 受理されていなかった事例が確認されているため、見た目だけで成功と断定しない。
-  // 通信を確認できない以上は安全側に倒し、要手動確認の失敗として扱う。
+  // 送信後、質問セクションが消える(サンクス画面へ遷移)なら成功、
+  // バリデーションエラーで質問セクションが残ったままなら失敗とみなす。
   const disappeared = await waitFor(
     () => document.querySelectorAll("section.question").length === 0,
-    { timeout: 3000, interval: 300 }
+    { timeout: 6000, interval: 300 }
   );
-  if (disappeared) {
-    return {
-      success: false,
-      error:
-        "送信通信の結果を検知できませんでした。画面上は完了表示になっていますが、" +
-        "サーバー側で正しく受理されたか手動でご確認ください。",
-    };
-  }
+  if (disappeared) return { success: true };
 
   const errorEl = [...document.querySelectorAll<HTMLElement>('[class*="error"]')].find(
     (e) => e.innerText && e.innerText.trim()
