@@ -53,7 +53,6 @@ async function processQueue(queue: QueueItem[]): Promise<void> {
 
       if (response?.success) {
         await markVideoSubmitted(item.videoId, item);
-        await chrome.tabs.remove(tab.id!);
         chrome.runtime.sendMessage({
           type: MSG.SUBMIT_PROGRESS,
           videoId: item.videoId,
@@ -61,6 +60,11 @@ async function processQueue(queue: QueueItem[]): Promise<void> {
           index: i + 1,
           total,
         });
+        // 送信完了の見た目が出た直後にタブを閉じると、実際の送信リクエストが
+        // まだ完了していない場合に通信ごと打ち切ってしまう恐れがある。
+        // 人が手動操作するときに完了を確認してから閉じる程度の間を空けてから閉じる。
+        await delay(5000);
+        await chrome.tabs.remove(tab.id!);
       } else {
         chrome.runtime.sendMessage({
           type: MSG.SUBMIT_PROGRESS,
