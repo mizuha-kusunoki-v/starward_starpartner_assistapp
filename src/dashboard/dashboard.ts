@@ -15,6 +15,8 @@ interface RowState {
   selected: boolean;
   submitted: boolean;
   status: string;
+  /** ONの行同士は、カテゴリ変更時に値が連動する（送信対象の選択とは別の仕組み） */
+  linked: boolean;
 }
 
 interface SubmitProgressMessage {
@@ -38,6 +40,7 @@ const els = {
   fetchBtn: requireEl<HTMLButtonElement>("fetchBtn"),
   fetchStatus: requireEl<HTMLSpanElement>("fetchStatus"),
   selectAll: requireEl<HTMLInputElement>("selectAll"),
+  linkAll: requireEl<HTMLInputElement>("linkAll"),
   submitBtn: requireEl<HTMLButtonElement>("submitBtn"),
   submitStatus: requireEl<HTMLSpanElement>("submitStatus"),
   videoRows: requireEl<HTMLTableSectionElement>("videoRows"),
@@ -63,9 +66,12 @@ function buildVideoTypeOptions(selected: string): string {
 }
 
 function buildCategoryOptions(selected: string): string {
-  return DEFAULT_CATEGORIES.map(
-    (c) => `<option value="${c}" ${c === selected ? "selected" : ""}>${c}</option>`
-  ).join("");
+  const categories = settings?.availableCategories?.length
+    ? settings.availableCategories
+    : DEFAULT_CATEGORIES;
+  return categories
+    .map((c) => `<option value="${c}" ${c === selected ? "selected" : ""}>${c}</option>`)
+    .join("");
 }
 
 function renderRow(video: YouTubeVideo): void {
@@ -89,6 +95,7 @@ function renderRow(video: YouTubeVideo): void {
     selected: !alreadySubmitted,
     submitted: alreadySubmitted,
     status: alreadySubmitted ? "送信済み" : "",
+    linked: false,
   };
   rows.set(videoId, state);
 
@@ -103,6 +110,7 @@ function renderRow(video: YouTubeVideo): void {
     <td>${publishedAt}</td>
     <td><input type="text" class="row-link" value="${link}" /></td>
     <td><select class="row-type">${buildVideoTypeOptions(videoType)}</select></td>
+    <td><input type="checkbox" class="row-link-category" title="ONの行同士はカテゴリ変更時に連動します" /></td>
     <td><select class="row-category">${buildCategoryOptions(category)}</select></td>
     <td class="status-cell">${state.status}</td>
   `;
@@ -117,8 +125,23 @@ function renderRow(video: YouTubeVideo): void {
   tr.querySelector<HTMLSelectElement>(".row-type")!.addEventListener("change", (e) => {
     state.videoType = (e.target as HTMLSelectElement).value;
   });
+  tr.querySelector<HTMLInputElement>(".row-link-category")!.addEventListener("change", (e) => {
+    // ONにした瞬間は値を変えない。次にどこかでカテゴリを変更した時だけ連動させる。
+    state.linked = (e.target as HTMLInputElement).checked;
+  });
   tr.querySelector<HTMLSelectElement>(".row-category")!.addEventListener("change", (e) => {
-    state.category = (e.target as HTMLSelectElement).value;
+    const newValue = (e.target as HTMLSelectElement).value;
+    state.category = newValue;
+    if (state.linked) {
+      for (const [otherId, otherState] of rows) {
+        if (otherId === videoId || !otherState.linked) continue;
+        otherState.category = newValue;
+        const otherSelect = els.videoRows.querySelector<HTMLSelectElement>(
+          `tr[data-video-id="${otherId}"] .row-category`
+        );
+        if (otherSelect) otherSelect.value = newValue;
+      }
+    }
   });
 
   els.videoRows.appendChild(tr);
@@ -182,6 +205,17 @@ function handleSelectAll(e: Event): void {
   updateSubmitButton();
 }
 
+function handleLinkAll(e: Event): void {
+  const checked = (e.target as HTMLInputElement).checked;
+  for (const tr of els.videoRows.querySelectorAll<HTMLTableRowElement>("tr")) {
+    const videoId = tr.dataset.videoId!;
+    const state = rows.get(videoId)!;
+    if (state.submitted) continue;
+    state.linked = checked;
+    tr.querySelector<HTMLInputElement>(".row-link-category")!.checked = checked;
+  }
+}
+
 function setRowStatus(videoId: string, text: string, cls?: string): void {
   const tr = els.videoRows.querySelector<HTMLTableRowElement>(`tr[data-video-id="${videoId}"]`);
   if (!tr) return;
@@ -234,6 +268,7 @@ chrome.runtime.onMessage.addListener((message: SubmitProgressMessage) => {
 
 els.fetchBtn.addEventListener("click", handleFetch);
 els.selectAll.addEventListener("change", handleSelectAll);
+els.linkAll.addEventListener("change", handleLinkAll);
 els.submitBtn.addEventListener("click", handleSubmit);
 
 (async function init() {

@@ -15,6 +15,8 @@
   button { padding: 6px 14px; font-size: 14px; cursor: pointer; }
   #status { margin-left: 10px; font-size: 13px; color: green; }
   .row-actions { text-align: center; }
+  #refreshCategoriesStatus { margin-left: 10px; font-size: 13px; }
+  #availableCategoriesList { margin: 10px 0 0; padding-left: 1.2em; font-size: 13px; color: #444; }
 </style>
 </head>
 <body>
@@ -49,6 +51,17 @@
     <label for="searchKeywords">検索キーワード（カンマ区切り、複数可）</label>
     <input type="text" id="searchKeywords" placeholder="星の翼" />
     <div class="hint">いずれかのキーワードにヒットした動画を月次取得の対象にします</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>投稿内容カテゴリの選択肢</legend>
+    <div class="hint">
+      新キャラクター実装などでフォーム側の選択肢が変わった場合に、ここで最新の状態に更新できます。
+      申請フォームURLを保存した上で押してください。
+    </div>
+    <button type="button" id="refreshCategoriesBtn">最新の選択肢を取得</button>
+    <span id="refreshCategoriesStatus"></span>
+    <ul id="availableCategoriesList"></ul>
   </fieldset>
 
   <fieldset>

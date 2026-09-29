@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS, getSettings, saveSettings } from "../lib/storage";
+import { fetchLiveCategoryOptions } from "../lib/formSync";
 import type { CategoryRule, Settings } from "../lib/types";
 
 function requireEl<T extends HTMLElement>(id: string): T {
@@ -16,7 +17,12 @@ const els = {
   searchKeywords: requireEl<HTMLInputElement>("searchKeywords"),
   categoryRows: requireEl<HTMLTableSectionElement>("categoryRows"),
   status: requireEl<HTMLSpanElement>("status"),
+  refreshCategoriesBtn: requireEl<HTMLButtonElement>("refreshCategoriesBtn"),
+  refreshCategoriesStatus: requireEl<HTMLSpanElement>("refreshCategoriesStatus"),
+  availableCategoriesList: requireEl<HTMLUListElement>("availableCategoriesList"),
 };
+
+let currentAvailableCategories: string[] = [];
 
 function addRuleRow(rule: CategoryRule = { category: "", keywords: [] }): void {
   const tr = document.createElement("tr");
@@ -61,6 +67,15 @@ function readRulesFromTable(): CategoryRule[] {
     .filter((rule) => rule.category);
 }
 
+function renderAvailableCategories(): void {
+  els.availableCategoriesList.innerHTML = "";
+  for (const category of currentAvailableCategories) {
+    const li = document.createElement("li");
+    li.textContent = category;
+    els.availableCategoriesList.appendChild(li);
+  }
+}
+
 async function load(): Promise<void> {
   const settings = await getSettings();
   els.formUrl.value = settings.formUrl;
@@ -73,6 +88,11 @@ async function load(): Promise<void> {
   els.categoryRows.innerHTML = "";
   const rules = settings.categoryRules?.length ? settings.categoryRules : DEFAULT_SETTINGS.categoryRules;
   rules.forEach(addRuleRow);
+
+  currentAvailableCategories = settings.availableCategories?.length
+    ? settings.availableCategories
+    : DEFAULT_SETTINGS.availableCategories;
+  renderAvailableCategories();
 }
 
 async function save(): Promise<void> {
@@ -84,13 +104,42 @@ async function save(): Promise<void> {
     youtubeChannelId: els.youtubeChannelId.value.trim(),
     searchKeywords: els.searchKeywords.value.trim(),
     categoryRules: readRulesFromTable(),
+    availableCategories: currentAvailableCategories,
   };
   await saveSettings(settings);
   els.status.textContent = "保存しました";
   setTimeout(() => (els.status.textContent = ""), 2000);
 }
 
+async function refreshAvailableCategories(): Promise<void> {
+  const formUrl = els.formUrl.value.trim();
+  if (!formUrl) {
+    els.refreshCategoriesStatus.textContent = "先に申請フォームURLを入力してください";
+    return;
+  }
+
+  els.refreshCategoriesBtn.disabled = true;
+  els.refreshCategoriesStatus.textContent = "取得中...";
+  try {
+    const categories = await fetchLiveCategoryOptions(formUrl);
+    currentAvailableCategories = categories;
+    renderAvailableCategories();
+    // 選択肢はformUrlと違いフォーム自体から取得した情報なので、取得できた時点で
+    // 即座に保存する(保存ボタンを別途押さなくても最新の状態がダッシュボードに反映される)
+    const settings = await getSettings();
+    settings.availableCategories = categories;
+    await saveSettings(settings);
+    els.refreshCategoriesStatus.textContent = `${categories.length}件の選択肢を取得・保存しました`;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    els.refreshCategoriesStatus.textContent = `取得に失敗しました: ${message}`;
+  } finally {
+    els.refreshCategoriesBtn.disabled = false;
+  }
+}
+
 requireEl<HTMLButtonElement>("addRuleBtn").addEventListener("click", () => addRuleRow());
 requireEl<HTMLButtonElement>("saveBtn").addEventListener("click", save);
+els.refreshCategoriesBtn.addEventListener("click", refreshAvailableCategories);
 
 load();

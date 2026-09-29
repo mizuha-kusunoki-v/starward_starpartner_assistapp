@@ -1,5 +1,6 @@
 // chrome.storage ラッパー: 固定設定(sync)と送信履歴(local)を扱う
 
+import { DEFAULT_CATEGORIES } from "./messages";
 import type { QueueItem, Settings, SubmittedVideos } from "./types";
 
 const SETTINGS_KEY = "settings";
@@ -24,6 +25,10 @@ export const DEFAULT_SETTINGS: Settings = {
     { category: "スキンレビュー", keywords: ["スキン"] },
     { category: "配信アーカイブ", keywords: ["配信"] },
   ],
+  // 「投稿内容」の選択肢一覧の初期値。オプション画面の「最新の選択肢を取得」で
+  // フォーム側の実際の選択肢に更新できる。未更新でもこれまで通り動作するよう、
+  // 既存のハードコード値をそのまま初期値にしておく。
+  availableCategories: [...DEFAULT_CATEGORIES],
 };
 
 export async function getSettings(): Promise<Settings> {

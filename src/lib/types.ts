@@ -15,6 +15,8 @@ export interface Settings {
   /** カンマ区切りの検索キーワード文字列 */
   searchKeywords: string;
   categoryRules: CategoryRule[];
+  /** 「投稿内容」の選択肢一覧。フォーム側の実際の選択肢と同期して更新する（オプション画面から手動更新） */
+  availableCategories: string[];
 }
 
 /** フォームへ1件分転記する動画データ */
