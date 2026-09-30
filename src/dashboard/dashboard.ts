@@ -41,6 +41,7 @@ const els = {
   fetchStatus: requireEl<HTMLSpanElement>("fetchStatus"),
   selectAll: requireEl<HTMLInputElement>("selectAll"),
   linkAll: requireEl<HTMLInputElement>("linkAll"),
+  toggleResubmitBtn: requireEl<HTMLButtonElement>("toggleResubmitBtn"),
   submitBtn: requireEl<HTMLButtonElement>("submitBtn"),
   submitStatus: requireEl<HTMLSpanElement>("submitStatus"),
   videoRows: requireEl<HTMLTableSectionElement>("videoRows"),
@@ -49,6 +50,10 @@ const els = {
 let settings: Settings | null = null;
 let submittedVideos: SubmittedVideos = {};
 const rows = new Map<string, RowState>();
+// 送信済み行の再選択ロック。安全のため、ダッシュボードを開き直すたびに
+// 必ずロック状態(false)から始まる（意図せず解除状態が残ることを避けるため、
+// 永続化はしない）。
+let resubmitUnlocked = false;
 
 function defaultMonthValue(): string {
   // 対象年月ピッカーの初期値。JST基準の「当月」。
@@ -103,8 +108,9 @@ function renderRow(video: YouTubeVideo): void {
   tr.dataset.videoId = videoId;
   if (alreadySubmitted) tr.classList.add("submitted");
 
+  const selectDisabled = alreadySubmitted && !resubmitUnlocked;
   tr.innerHTML = `
-    <td><input type="checkbox" class="row-select" ${state.selected ? "checked" : ""} ${alreadySubmitted ? "disabled" : ""} /></td>
+    <td><input type="checkbox" class="row-select" ${state.selected ? "checked" : ""} ${selectDisabled ? "disabled" : ""} /></td>
     <td>${thumb ? `<img class="thumb" src="${thumb}" alt="" />` : ""}</td>
     <td><a href="${link}" target="_blank">${title}</a></td>
     <td>${publishedAt}</td>
@@ -148,8 +154,36 @@ function renderRow(video: YouTubeVideo): void {
 }
 
 function updateSubmitButton(): void {
-  const anySelected = [...rows.values()].some((r) => r.selected && !r.submitted);
+  const anySelected = [...rows.values()].some((r) => r.selected);
   els.submitBtn.disabled = !anySelected;
+}
+
+/**
+ * 送信済み行の「送信対象」チェックボックスを、万が一の再送信のために
+ * 有効化/無効化を切り替える。デフォルトは無効化(誤って再送信しない安全側)。
+ * 解除中でも「全選択」「全て連動」は送信済み行を対象に含めない
+ * （再送信したい行は必ず1件ずつ手動でチェックする）。
+ */
+function handleToggleResubmit(): void {
+  resubmitUnlocked = !resubmitUnlocked;
+  els.toggleResubmitBtn.textContent = resubmitUnlocked
+    ? "送信済みの再選択を禁止する"
+    : "送信済みの再選択を許可する";
+
+  for (const tr of els.videoRows.querySelectorAll<HTMLTableRowElement>("tr")) {
+    const videoId = tr.dataset.videoId!;
+    const state = rows.get(videoId)!;
+    if (!state.submitted) continue;
+
+    const checkbox = tr.querySelector<HTMLInputElement>(".row-select")!;
+    checkbox.disabled = !resubmitUnlocked;
+    if (!resubmitUnlocked) {
+      // 再ロック時は、うっかり選択されたままの状態を残さない
+      state.selected = false;
+      checkbox.checked = false;
+    }
+  }
+  updateSubmitButton();
 }
 
 async function handleFetch(): Promise<void> {
@@ -225,7 +259,7 @@ function setRowStatus(videoId: string, text: string, cls?: string): void {
 
 async function handleSubmit(): Promise<void> {
   const queue: QueueItem[] = [...rows.values()]
-    .filter((r) => r.selected && !r.submitted)
+    .filter((r) => r.selected)
     .map((r) => ({
       videoId: r.videoId,
       channelName: settings!.channelName,
@@ -253,7 +287,19 @@ chrome.runtime.onMessage.addListener((message: SubmitProgressMessage) => {
 
   if (status === "success" && videoId) {
     const state = rows.get(videoId);
-    if (state) state.submitted = true;
+    if (state) {
+      state.submitted = true;
+      // 送信完了直後に選択状態を残さない(同じキューに紛れて連続送信されるのを防ぐ)。
+      // 無効化(disabled)は他の送信済み行と同じく、現在の全体トグル状態に従わせる。
+      state.selected = false;
+      const checkbox = els.videoRows.querySelector<HTMLInputElement>(
+        `tr[data-video-id="${videoId}"] .row-select`
+      );
+      if (checkbox) {
+        checkbox.checked = false;
+        checkbox.disabled = !resubmitUnlocked;
+      }
+    }
     setRowStatus(videoId, "送信完了", "submitted");
   } else if (status === "failed" && videoId) {
     setRowStatus(videoId, `失敗: ${error || ""}`, "failed");
@@ -269,6 +315,7 @@ chrome.runtime.onMessage.addListener((message: SubmitProgressMessage) => {
 els.fetchBtn.addEventListener("click", handleFetch);
 els.selectAll.addEventListener("change", handleSelectAll);
 els.linkAll.addEventListener("change", handleLinkAll);
+els.toggleResubmitBtn.addEventListener("click", handleToggleResubmit);
 els.submitBtn.addEventListener("click", handleSubmit);
 
 (async function init() {
