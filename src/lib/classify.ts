@@ -28,6 +28,19 @@ export function inferVideoType(video: YouTubeVideo): VideoTypeLabel {
 }
 
 /**
+ * 動画の「実質的な公開日時」を返す。
+ *
+ * ライブ配信の場合、`snippet.publishedAt`は配信を事前に予約設定した日時になって
+ * いることがあり、実際に配信を開始した日時とは異なる（宣伝のため前夜に予約し、
+ * 翌朝に配信を開始するケースなどで、日付がずれて見える不具合の原因になっていた）。
+ * `liveStreamingDetails.actualStartTime`（実際に配信を開始した日時）が取得できる
+ * 場合はそちらを優先し、無ければ`snippet.publishedAt`にフォールバックする。
+ */
+export function getEffectivePublishedAt(video: YouTubeVideo): string | undefined {
+  return video.liveStreamingDetails?.actualStartTime ?? video.snippet?.publishedAt;
+}
+
+/**
  * 動画タイトルとカテゴリ推測ルールから「投稿内容」カテゴリを推測する。
  * ルールは上から順に評価し、最初にマッチしたカテゴリを返す。
  * どれにもマッチしなければ「その他」。

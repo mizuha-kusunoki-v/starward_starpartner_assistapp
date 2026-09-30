@@ -1,6 +1,6 @@
 import { getSettings, getSubmittedVideos } from "../lib/storage";
 import { fetchMonthlyVideos } from "../lib/youtube";
-import { inferVideoType, inferCategory } from "../lib/classify";
+import { inferVideoType, inferCategory, getEffectivePublishedAt } from "../lib/classify";
 import { MSG, VIDEO_TYPES, DEFAULT_CATEGORIES } from "../lib/messages";
 import { toJstDateString } from "../lib/date";
 import type { QueueItem, Settings, SubmittedVideos, YouTubeVideo } from "../lib/types";
@@ -82,8 +82,11 @@ function buildCategoryOptions(selected: string): string {
 function renderRow(video: YouTubeVideo): void {
   const videoId = video.id;
   const title = video.snippet?.title || "(タイトル取得失敗)";
-  // YouTube APIのpublishedAtはUTC基準なので、必ずJSTの暦日に変換してから使う
-  const publishedAt = video.snippet?.publishedAt ? toJstDateString(video.snippet.publishedAt) : "";
+  // YouTube APIの日時はUTC基準なので、必ずJSTの暦日に変換してから使う。
+  // ライブ配信は snippet.publishedAt(予約設定した日時) ではなく、実際に配信を
+  // 開始した日時(liveStreamingDetails.actualStartTime)を優先する。
+  const effectivePublishedAt = getEffectivePublishedAt(video);
+  const publishedAt = effectivePublishedAt ? toJstDateString(effectivePublishedAt) : "";
   const thumb = video.snippet?.thumbnails?.default?.url || "";
   const link = `https://www.youtube.com/watch?v=${videoId}`;
   const videoType = inferVideoType(video);
@@ -214,7 +217,9 @@ async function handleFetch(): Promise<void> {
       month,
     });
     videos
-      .sort((a, b) => (a.snippet?.publishedAt || "").localeCompare(b.snippet?.publishedAt || ""))
+      .sort((a, b) =>
+        (getEffectivePublishedAt(a) || "").localeCompare(getEffectivePublishedAt(b) || "")
+      )
       .forEach(renderRow);
     els.fetchStatus.textContent = `${videos.length}件取得しました`;
   } catch (err) {
