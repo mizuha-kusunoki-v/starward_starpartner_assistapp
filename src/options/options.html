@@ -17,6 +17,8 @@
   .row-actions { text-align: center; }
   #refreshCategoriesStatus { margin-left: 10px; font-size: 13px; }
   #availableCategoriesList { margin: 10px 0 0; padding-left: 1.2em; font-size: 13px; color: #444; }
+  .rule-category { width: 100%; max-width: 280px; padding: 4px; }
+  #ruleWarning { margin-top: 8px; padding: 8px 10px; background: #fff3cd; border: 1px solid #ffe69c; border-radius: 6px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -57,7 +59,7 @@
     <legend>投稿内容カテゴリの選択肢</legend>
     <div class="hint">
       新キャラクター実装などでフォーム側の選択肢が変わった場合に、ここで最新の状態に更新できます。
-      申請フォームURLを保存した上で押してください。
+      申請フォームURLを入力して押すと、フォームのタブが一時的に開き、読み取り後に自動で閉じます。
     </div>
     <button type="button" id="refreshCategoriesBtn">最新の選択肢を取得</button>
     <span id="refreshCategoriesStatus"></span>
@@ -67,6 +69,7 @@
   <fieldset>
     <legend>投稿内容カテゴリの自動推測ルール</legend>
     <div class="hint">動画タイトルに含まれるキーワードで、上の行から順に判定します。どれにもマッチしない場合は「その他」になります。</div>
+    <div id="ruleWarning" hidden></div>
     <table id="categoryTable">
       <thead><tr><th>カテゴリ</th><th>キーワード（カンマ区切り）</th><th></th></tr></thead>
       <tbody id="categoryRows"></tbody>

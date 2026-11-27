@@ -7,6 +7,8 @@ export const MSG = {
   SUBMIT_PROGRESS: "SUBMIT_PROGRESS",
   // background -> content: このフォームに入力して送信してほしい
   FILL_AND_SUBMIT: "FILL_AND_SUBMIT",
+  // options -> content: フォームの「投稿内容」の選択肢を読み取ってほしい
+  READ_CATEGORY_OPTIONS: "READ_CATEGORY_OPTIONS",
 } as const;
 
 export type MsgType = (typeof MSG)[keyof typeof MSG];

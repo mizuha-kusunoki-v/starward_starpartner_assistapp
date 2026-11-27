@@ -1,6 +1,11 @@
 import { getSettings, getSubmittedVideos } from "../lib/storage";
 import { fetchMonthlyVideos } from "../lib/youtube";
-import { inferVideoType, inferCategory, getEffectivePublishedAt } from "../lib/classify";
+import {
+  inferVideoType,
+  inferCategory,
+  getEffectivePublishedAt,
+  toAvailableCategory,
+} from "../lib/classify";
 import { MSG, VIDEO_TYPES, DEFAULT_CATEGORIES } from "../lib/messages";
 import { toJstDateString } from "../lib/date";
 import type { QueueItem, Settings, SubmittedVideos, YouTubeVideo } from "../lib/types";
@@ -109,7 +114,10 @@ function renderRow(video: YouTubeVideo): void {
   const thumb = video.snippet?.thumbnails?.default?.url || "";
   const link = `https://www.youtube.com/watch?v=${videoId}`;
   const videoType = inferVideoType(video);
-  const category = inferCategory(title, settings!.categoryRules);
+  const category = toAvailableCategory(
+    inferCategory(title, settings!.categoryRules),
+    categoryChoices()
+  );
   const alreadySubmitted = Boolean(submittedVideos[videoId]);
 
   const state: RowState = {

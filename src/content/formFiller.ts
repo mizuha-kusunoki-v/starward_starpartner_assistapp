@@ -294,8 +294,37 @@ async function fillAndSubmit(data: QueueItem): Promise<FillAndSubmitResult> {
   return submitForm();
 }
 
+async function readCategoryOptions(): Promise<string[]> {
+  const categories = await waitFor(
+    () => {
+      // 前回の入力が残っていると確認ダイアログが出て設問が描画されない
+      [...document.querySelectorAll<HTMLButtonElement>("button")]
+        .find((b) => b.innerText.trim() === "重新填写")
+        ?.click();
+      const options = [
+        ...(findQuestion("投稿内容")?.querySelectorAll<HTMLElement>(".checkbox-option") ?? []),
+      ]
+        .map((o) => o.innerText.trim())
+        .filter(Boolean);
+      return options.length ? options : null;
+    },
+    { timeout: 15000, interval: 500 }
+  );
+  if (!categories) throw new Error("フォーム内に「投稿内容」の設問が見つかりませんでした");
+  return categories;
+}
+
 chrome.runtime.onMessage.addListener(
   (message: { type: string; data?: QueueItem }, _sender, sendResponse) => {
+    if (message.type === MSG.READ_CATEGORY_OPTIONS) {
+      readCategoryOptions()
+        .then((categories) => sendResponse({ success: true, categories }))
+        .catch((err: unknown) => {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          sendResponse({ success: false, error: errorMessage });
+        });
+      return true;
+    }
     if (message.type !== MSG.FILL_AND_SUBMIT || !message.data) return undefined;
 
     fillAndSubmit(message.data)

@@ -20,19 +20,45 @@ const els = {
   refreshCategoriesBtn: requireEl<HTMLButtonElement>("refreshCategoriesBtn"),
   refreshCategoriesStatus: requireEl<HTMLSpanElement>("refreshCategoriesStatus"),
   availableCategoriesList: requireEl<HTMLUListElement>("availableCategoriesList"),
+  ruleWarning: requireEl<HTMLDivElement>("ruleWarning"),
 };
 
 let currentAvailableCategories: string[] = [];
+
+/** ルールのカテゴリ欄に選択肢を並べる。選択肢に無い名称は消さずに、その旨を表示して残す */
+function fillCategoryOptions(select: HTMLSelectElement, current: string): void {
+  select.replaceChildren(new Option("選択してください", ""));
+  for (const category of currentAvailableCategories) {
+    select.add(new Option(category, category));
+  }
+  if (current && !currentAvailableCategories.includes(current)) {
+    select.add(new Option(`（選択肢にありません）${current}`, current));
+  }
+  select.value = current;
+}
+
+function updateRuleWarning(): void {
+  const missing = readRulesFromTable()
+    .map((rule) => rule.category)
+    .filter((category) => !currentAvailableCategories.includes(category));
+  els.ruleWarning.hidden = !missing.length;
+  els.ruleWarning.textContent = missing.length
+    ? `フォームの選択肢に無いカテゴリがあります: ${missing.join("、")}。プルダウンで選び直して「保存」を押してください（このままだと該当する動画は「その他」になります）。`
+    : "";
+}
 
 function addRuleRow(rule: CategoryRule = { category: "", keywords: [] }): void {
   const tr = document.createElement("tr");
 
   const categoryTd = document.createElement("td");
-  const categoryInput = document.createElement("input");
-  categoryInput.type = "text";
-  categoryInput.className = "rule-category";
-  categoryInput.value = rule.category;
-  categoryTd.appendChild(categoryInput);
+  const categorySelect = document.createElement("select");
+  categorySelect.className = "rule-category";
+  fillCategoryOptions(categorySelect, rule.category);
+  categorySelect.addEventListener("change", () => {
+    fillCategoryOptions(categorySelect, categorySelect.value);
+    updateRuleWarning();
+  });
+  categoryTd.appendChild(categorySelect);
 
   const keywordsTd = document.createElement("td");
   const keywordsInput = document.createElement("input");
@@ -46,7 +72,10 @@ function addRuleRow(rule: CategoryRule = { category: "", keywords: [] }): void {
   const removeBtn = document.createElement("button");
   removeBtn.type = "button";
   removeBtn.textContent = "削除";
-  removeBtn.addEventListener("click", () => tr.remove());
+  removeBtn.addEventListener("click", () => {
+    tr.remove();
+    updateRuleWarning();
+  });
   actionTd.appendChild(removeBtn);
 
   tr.append(categoryTd, keywordsTd, actionTd);
@@ -56,7 +85,7 @@ function addRuleRow(rule: CategoryRule = { category: "", keywords: [] }): void {
 function readRulesFromTable(): CategoryRule[] {
   return [...els.categoryRows.querySelectorAll("tr")]
     .map((tr) => {
-      const category = tr.querySelector<HTMLInputElement>(".rule-category")!.value.trim();
+      const category = tr.querySelector<HTMLSelectElement>(".rule-category")!.value;
       const keywords = tr
         .querySelector<HTMLInputElement>(".rule-keywords")!
         .value.split(",")
@@ -85,14 +114,15 @@ async function load(): Promise<void> {
   els.youtubeChannelId.value = settings.youtubeChannelId;
   els.searchKeywords.value = settings.searchKeywords;
 
-  els.categoryRows.replaceChildren();
-  const rules = settings.categoryRules?.length ? settings.categoryRules : DEFAULT_SETTINGS.categoryRules;
-  rules.forEach(addRuleRow);
-
   currentAvailableCategories = settings.availableCategories?.length
     ? settings.availableCategories
     : DEFAULT_SETTINGS.availableCategories;
   renderAvailableCategories();
+
+  els.categoryRows.replaceChildren();
+  const rules = settings.categoryRules?.length ? settings.categoryRules : DEFAULT_SETTINGS.categoryRules;
+  rules.forEach(addRuleRow);
+  updateRuleWarning();
 }
 
 async function save(): Promise<void> {
@@ -124,6 +154,10 @@ async function refreshAvailableCategories(): Promise<void> {
     const categories = await fetchLiveCategoryOptions(formUrl);
     currentAvailableCategories = categories;
     renderAvailableCategories();
+    for (const select of els.categoryRows.querySelectorAll<HTMLSelectElement>(".rule-category")) {
+      fillCategoryOptions(select, select.value);
+    }
+    updateRuleWarning();
     // 選択肢はformUrlと違いフォーム自体から取得した情報なので、取得できた時点で
     // 即座に保存する(保存ボタンを別途押さなくても最新の状態がダッシュボードに反映される)
     const settings = await getSettings();

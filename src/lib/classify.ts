@@ -41,6 +41,15 @@ export function getEffectivePublishedAt(video: YouTubeVideo): string | undefined
 }
 
 /**
+ * 推測したカテゴリがフォームの選択肢に無い場合(ルールの名称が古い場合など)は
+ * 「その他」に置き換え、画面の表示と送信内容がずれないようにする。
+ */
+export function toAvailableCategory(category: string, choices: readonly string[]): string {
+  if (choices.includes(category)) return category;
+  return choices.includes("その他") ? "その他" : (choices[0] ?? category);
+}
+
+/**
  * 動画タイトルとカテゴリ推測ルールから「投稿内容」カテゴリを推測する。
  * ルールは上から順に評価し、最初にマッチしたカテゴリを返す。
  * どれにもマッチしなければ「その他」。

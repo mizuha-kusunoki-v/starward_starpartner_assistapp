@@ -46,6 +46,12 @@ export interface FillAndSubmitResult {
   error?: string;
 }
 
+export interface ReadCategoriesResult {
+  success: boolean;
+  categories?: string[];
+  error?: string;
+}
+
 // --- YouTube Data API v3 レスポンス（使用するフィールドのみ） ---
 
 export interface YouTubeThumbnail {

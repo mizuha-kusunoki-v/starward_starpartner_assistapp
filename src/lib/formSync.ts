@@ -1,73 +1,61 @@
-// 申請フォームの実際の質問構成から、最新の「投稿内容」カテゴリ選択肢を取得する。
-// 運営が新キャラクターを実装するたびに選択肢が変わるため、ハードコードせず
-// フォーム自身のAPIから毎回取得できるようにする。
+// 申請フォームから最新の「投稿内容」カテゴリ選択肢を取得する。
+// 運営が新キャラクターを実装するたびに選択肢が変わるため、ハードコードしない。
+//
+// フォームのAPIは回答ページを経由しない直接の問い合わせを拒否する
+// (invalid_referer / invalid_answer_session)ため、フォームのページをタブで開き、
+// content script(formFiller.ts)に画面から読み取らせる。
 
-const FORM_URL_PATTERN = /\/s2\/(\d+)\/([^/?#]+)/;
+import { MSG } from "./messages";
+import type { ReadCategoriesResult } from "./types";
 
-interface ParsedFormUrl {
-  sid: string;
-  hash: string;
+const CONNECT_TIMEOUT_MS = 20000;
+
+function isFormUrl(formUrl: string): boolean {
+  try {
+    const url = new URL(formUrl);
+    return url.protocol === "https:" && url.hostname === "wj.qq.com";
+  } catch {
+    return false;
+  }
 }
 
-export function parseFormUrl(formUrl: string): ParsedFormUrl | null {
-  const match = FORM_URL_PATTERN.exec(formUrl.trim());
-  if (!match) return null;
-  const [, sid, hash] = match;
-  if (!sid || !hash) return null;
-  return { sid, hash };
+/** content scriptが応答できるようになるまで(ページ読み込み中は失敗する)再試行する */
+async function requestCategories(tabId: number): Promise<ReadCategoriesResult> {
+  const deadline = Date.now() + CONNECT_TIMEOUT_MS;
+  for (;;) {
+    try {
+      return (await chrome.tabs.sendMessage(tabId, {
+        type: MSG.READ_CATEGORY_OPTIONS,
+      })) as ReadCategoriesResult;
+    } catch {
+      if (Date.now() > deadline) {
+        throw new Error("申請フォームのページを読み込めませんでした");
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
 }
-
-interface SurveyQuestionOption {
-  text: string;
-}
-
-interface SurveyQuestion {
-  title: string;
-  type: string;
-  options?: SurveyQuestionOption[];
-}
-
-interface SurveyQuestionsResponse {
-  code: string;
-  data?: {
-    code: number;
-    questions?: SurveyQuestion[];
-  };
-}
-
-const CATEGORY_QUESTION_TITLE = "投稿内容";
 
 export async function fetchLiveCategoryOptions(formUrl: string): Promise<string[]> {
-  const parsed = parseFormUrl(formUrl);
-  if (!parsed) {
+  if (!isFormUrl(formUrl)) {
     throw new Error(
-      "申請フォームURLの形式を認識できませんでした（https://wj.qq.com/s2/xxxxx/xxxx/ の形式である必要があります）"
+      "申請フォームURLの形式を認識できませんでした（https://wj.qq.com/ で始まるURLを指定してください）"
     );
   }
 
-  const apiUrl = `https://wj.qq.com/api/v2/respondent/surveys/${parsed.sid}/questions?hash=${parsed.hash}&locale=zhs`;
-  let res: Response;
+  const returnTab = await chrome.tabs.getCurrent();
+  // 非表示のタブは描画が止まることがあるため、表示した状態で開く
+  const formTab = await chrome.tabs.create({ url: formUrl, active: true });
   try {
-    res = await fetch(apiUrl);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`フォームへの通信に失敗しました: ${message}`);
+    const result = await requestCategories(formTab.id!);
+    if (!result.success || !result.categories?.length) {
+      throw new Error(result.error || "「投稿内容」の選択肢を読み取れませんでした");
+    }
+    return result.categories;
+  } finally {
+    await chrome.tabs.remove(formTab.id!).catch(() => undefined);
+    if (returnTab?.id !== undefined) {
+      await chrome.tabs.update(returnTab.id, { active: true });
+    }
   }
-  if (!res.ok) {
-    throw new Error(`フォームへの通信でエラーが発生しました (HTTP ${res.status})`);
-  }
-
-  const json = (await res.json()) as SurveyQuestionsResponse;
-  if (json.code !== "OK" || !json.data || json.data.code !== 0) {
-    throw new Error("フォームの質問一覧を取得できませんでした（フォームURLが正しいかご確認ください）");
-  }
-
-  const question = (json.data.questions ?? []).find(
-    (q) => q.title === CATEGORY_QUESTION_TITLE && q.type === "radio"
-  );
-  if (!question || !question.options?.length) {
-    throw new Error("フォーム内に「投稿内容」の設問が見つかりませんでした");
-  }
-
-  return question.options.map((o) => o.text);
 }
