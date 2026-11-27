@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "星の翼 スターパートナー 動画・配信申請アシスト",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "YouTube動画を検索し、スターパートナー申請フォームへの転記・送信を半自動化します。",
   "icons": {
     "16": "icons/icon16.png",
@@ -20,10 +20,9 @@
     "service_worker": "background/service-worker.js"
   },
   "options_page": "options/options.html",
-  "permissions": ["storage", "scripting", "tabs"],
+  "permissions": ["storage"],
   "host_permissions": [
-    "https://wj.qq.com/*",
-    "https://www.googleapis.com/*"
+    "https://wj.qq.com/*"
   ],
   "content_scripts": [
     {

@@ -122,10 +122,11 @@ program. The user always reviews and explicitly triggers the submission.
 | 権限 | 正当化文（コピー用） |
 |---|---|
 | `storage` | Used to store the user's own settings (channel name, Discord ID, YouTube API key, keyword rules) and a local history of already-submitted videos, entirely on the user's device, to prevent duplicate submissions. |
-| `tabs` | Used to open the target application form in a new tab for each selected video and detect when the page has finished loading before auto-filling it. |
-| `scripting` | Used to inject the auto-fill logic into the application form page so it can populate fields with data the user already reviewed in the extension's dashboard. |
-| host permission: `https://wj.qq.com/*` | Required to read and fill the fields of the specific "Star Partner" video-application form hosted on this domain, only for videos the user explicitly selected and submitted. |
-| host permission: `https://www.googleapis.com/*` | Required to call the YouTube Data API v3 using the user's own API key, to retrieve metadata (title, publish date, duration) of the user's own public videos. |
+| host permission: `https://wj.qq.com/*` | Required to fill and submit the "Star Partner" video-application form hosted on this domain (only for videos the user explicitly selected), and to retrieve the form's current category options when the user clicks the refresh button. |
+
+`tabs`・`scripting`・`googleapis.com`の権限は使いません（`chrome.tabs`の基本操作と、
+manifestで静的に登録したcontent scriptには不要。YouTube APIはCORSに対応しているため
+権限なしで通信できる）。使わない権限を追加すると不承認になります。
 
 **リモートコードの使用**: 「いいえ（使用しない）」を選択（拡張機能内に全コードが同梱されているため）
 
