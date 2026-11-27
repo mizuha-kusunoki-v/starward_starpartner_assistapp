@@ -1,6 +1,6 @@
 {
   "name": "starpartner-assistant",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "private": true,
   "description": "星の翼 スターパートナー 動画・配信申請アシスト（Chrome拡張機能）",
   "type": "module",
