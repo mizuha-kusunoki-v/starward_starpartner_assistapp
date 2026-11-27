@@ -64,19 +64,38 @@ function settingsAreComplete(s: Settings): boolean {
   return Boolean(s.formUrl && s.channelName && s.discordId && s.youtubeApiKey && s.youtubeChannelId);
 }
 
-function buildVideoTypeOptions(selected: string): string {
-  return Object.values(VIDEO_TYPES)
-    .map((t) => `<option value="${t}" ${t === selected ? "selected" : ""}>${t}</option>`)
-    .join("");
+// YouTubeやフォームから取得した文字列は、HTMLとして解釈させないために
+// innerHTMLを使わず、要素を作ってプロパティ/textContentに設定する。
+
+function createCell(...children: (Node | string)[]): HTMLTableCellElement {
+  const td = document.createElement("td");
+  td.append(...children);
+  return td;
 }
 
-function buildCategoryOptions(selected: string): string {
-  const categories = settings?.availableCategories?.length
-    ? settings.availableCategories
-    : DEFAULT_CATEGORIES;
-  return categories
-    .map((c) => `<option value="${c}" ${c === selected ? "selected" : ""}>${c}</option>`)
-    .join("");
+function createInput(type: "checkbox" | "text", className: string): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = type;
+  input.className = className;
+  return input;
+}
+
+function createSelect(
+  className: string,
+  values: readonly string[],
+  selected: string
+): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.className = className;
+  for (const value of values) {
+    const isSelected = value === selected;
+    select.add(new Option(value, value, isSelected, isSelected));
+  }
+  return select;
+}
+
+function categoryChoices(): readonly string[] {
+  return settings?.availableCategories?.length ? settings.availableCategories : DEFAULT_CATEGORIES;
 }
 
 function renderRow(video: YouTubeVideo): void {
@@ -111,35 +130,62 @@ function renderRow(video: YouTubeVideo): void {
   tr.dataset.videoId = videoId;
   if (alreadySubmitted) tr.classList.add("submitted");
 
-  const selectDisabled = alreadySubmitted && !resubmitUnlocked;
-  tr.innerHTML = `
-    <td><input type="checkbox" class="row-select" ${state.selected ? "checked" : ""} ${selectDisabled ? "disabled" : ""} /></td>
-    <td>${thumb ? `<img class="thumb" src="${thumb}" alt="" />` : ""}</td>
-    <td><a href="${link}" target="_blank">${title}</a></td>
-    <td>${publishedAt}</td>
-    <td><input type="text" class="row-link" value="${link}" /></td>
-    <td><select class="row-type">${buildVideoTypeOptions(videoType)}</select></td>
-    <td><input type="checkbox" class="row-link-category" title="ONの行同士はカテゴリ変更時に連動します" /></td>
-    <td><select class="row-category">${buildCategoryOptions(category)}</select></td>
-    <td class="status-cell">${state.status}</td>
-  `;
+  const selectBox = createInput("checkbox", "row-select");
+  selectBox.checked = state.selected;
+  selectBox.disabled = alreadySubmitted && !resubmitUnlocked;
 
-  tr.querySelector<HTMLInputElement>(".row-select")!.addEventListener("change", (e) => {
-    state.selected = (e.target as HTMLInputElement).checked;
+  const thumbCell = createCell();
+  if (thumb) {
+    const img = document.createElement("img");
+    img.className = "thumb";
+    img.src = thumb;
+    img.alt = "";
+    thumbCell.append(img);
+  }
+
+  const anchor = document.createElement("a");
+  anchor.href = link;
+  anchor.target = "_blank";
+  anchor.textContent = title;
+
+  const linkInput = createInput("text", "row-link");
+  linkInput.value = link;
+  const typeSelect = createSelect("row-type", Object.values(VIDEO_TYPES), videoType);
+  const linkCategoryBox = createInput("checkbox", "row-link-category");
+  linkCategoryBox.title = "ONの行同士はカテゴリ変更時に連動します";
+  const categorySelect = createSelect("row-category", categoryChoices(), category);
+
+  const statusCell = createCell(state.status);
+  statusCell.className = "status-cell";
+
+  tr.append(
+    createCell(selectBox),
+    thumbCell,
+    createCell(anchor),
+    createCell(publishedAt),
+    createCell(linkInput),
+    createCell(typeSelect),
+    createCell(linkCategoryBox),
+    createCell(categorySelect),
+    statusCell
+  );
+
+  selectBox.addEventListener("change", () => {
+    state.selected = selectBox.checked;
     updateSubmitButton();
   });
-  tr.querySelector<HTMLInputElement>(".row-link")!.addEventListener("input", (e) => {
-    state.link = (e.target as HTMLInputElement).value;
+  linkInput.addEventListener("input", () => {
+    state.link = linkInput.value;
   });
-  tr.querySelector<HTMLSelectElement>(".row-type")!.addEventListener("change", (e) => {
-    state.videoType = (e.target as HTMLSelectElement).value;
+  typeSelect.addEventListener("change", () => {
+    state.videoType = typeSelect.value;
   });
-  tr.querySelector<HTMLInputElement>(".row-link-category")!.addEventListener("change", (e) => {
+  linkCategoryBox.addEventListener("change", () => {
     // ONにした瞬間は値を変えない。次にどこかでカテゴリを変更した時だけ連動させる。
-    state.linked = (e.target as HTMLInputElement).checked;
+    state.linked = linkCategoryBox.checked;
   });
-  tr.querySelector<HTMLSelectElement>(".row-category")!.addEventListener("change", (e) => {
-    const newValue = (e.target as HTMLSelectElement).value;
+  categorySelect.addEventListener("change", () => {
+    const newValue = categorySelect.value;
     state.category = newValue;
     if (state.linked) {
       for (const [otherId, otherState] of rows) {
@@ -204,7 +250,7 @@ async function handleFetch(): Promise<void> {
 
   els.fetchBtn.disabled = true;
   els.fetchStatus.textContent = "取得中...";
-  els.videoRows.innerHTML = "";
+  els.videoRows.replaceChildren();
   rows.clear();
 
   try {

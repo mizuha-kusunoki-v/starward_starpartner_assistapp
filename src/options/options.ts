@@ -68,7 +68,7 @@ function readRulesFromTable(): CategoryRule[] {
 }
 
 function renderAvailableCategories(): void {
-  els.availableCategoriesList.innerHTML = "";
+  els.availableCategoriesList.replaceChildren();
   for (const category of currentAvailableCategories) {
     const li = document.createElement("li");
     li.textContent = category;
@@ -85,7 +85,7 @@ async function load(): Promise<void> {
   els.youtubeChannelId.value = settings.youtubeChannelId;
   els.searchKeywords.value = settings.searchKeywords;
 
-  els.categoryRows.innerHTML = "";
+  els.categoryRows.replaceChildren();
   const rules = settings.categoryRules?.length ? settings.categoryRules : DEFAULT_SETTINGS.categoryRules;
   rules.forEach(addRuleRow);
 
