@@ -1,8 +1,17 @@
 // YouTube Data API v3 クライアント（APIキーのみ、公開動画対象）
 
+import { getEffectivePublishedAt } from "./classify";
+import { toJstDateString } from "./date";
 import type { YouTubeVideo } from "./types";
 
 const API_BASE = "https://www.googleapis.com/youtube/v3";
+
+// 検索APIはpublishedAt(予約配信では予約した日時)でしか絞り込めないため、
+// 対象月より広く検索してから、実際の配信日・公開日(JST)で絞り込む。
+const SEARCH_DAYS_BEFORE = 31;
+const SEARCH_DAYS_AFTER = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 interface SearchListResponse {
   items?: { id?: { videoId?: string } }[];
@@ -127,8 +136,11 @@ export async function fetchMonthlyVideos({
   year,
   month,
 }: FetchMonthlyVideosParams): Promise<YouTubeVideo[]> {
-  const publishedAfter = new Date(Date.UTC(year, month - 1, 1)).toISOString();
-  const publishedBefore = new Date(Date.UTC(year, month, 1)).toISOString();
+  const monthStart = Date.UTC(year, month - 1, 1) - JST_OFFSET_MS;
+  const monthEnd = Date.UTC(year, month, 1) - JST_OFFSET_MS;
+  const publishedAfter = new Date(monthStart - SEARCH_DAYS_BEFORE * DAY_MS).toISOString();
+  const publishedBefore = new Date(monthEnd + SEARCH_DAYS_AFTER * DAY_MS).toISOString();
+  const targetMonth = `${year}-${String(month).padStart(2, "0")}`;
 
   const keywordList = keywords.length ? keywords : [""];
   const idSets = await Promise.all(
@@ -140,5 +152,12 @@ export async function fetchMonthlyVideos({
   if (!uniqueIds.length) return [];
 
   const videos = await fetchVideoDetails({ apiKey, videoIds: uniqueIds });
-  return videos.filter((video) => matchesKeywords(video, keywords));
+  return videos.filter((video) => {
+    const publishedAt = getEffectivePublishedAt(video);
+    return (
+      publishedAt !== undefined &&
+      toJstDateString(publishedAt).startsWith(targetMonth) &&
+      matchesKeywords(video, keywords)
+    );
+  });
 }

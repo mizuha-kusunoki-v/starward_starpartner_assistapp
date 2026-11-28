@@ -5,6 +5,8 @@ import {
   inferCategory,
   getEffectivePublishedAt,
   toAvailableCategory,
+  parseIsoDuration,
+  formatDuration,
 } from "../lib/classify";
 import { MSG, VIDEO_TYPES, DEFAULT_CATEGORIES } from "../lib/messages";
 import { toJstDateString } from "../lib/date";
@@ -14,6 +16,7 @@ interface RowState {
   videoId: string;
   title: string;
   publishedAt: string;
+  durationSeconds: number;
   link: string;
   videoType: string;
   category: string;
@@ -50,6 +53,8 @@ const els = {
   submitBtn: requireEl<HTMLButtonElement>("submitBtn"),
   submitStatus: requireEl<HTMLSpanElement>("submitStatus"),
   videoRows: requireEl<HTMLTableSectionElement>("videoRows"),
+  streamTotal: requireEl<HTMLElement>("streamTotal"),
+  videoTotal: requireEl<HTMLElement>("videoTotal"),
 };
 
 let settings: Settings | null = null;
@@ -120,10 +125,13 @@ function renderRow(video: YouTubeVideo): void {
   );
   const alreadySubmitted = Boolean(submittedVideos[videoId]);
 
+  const durationSeconds = parseIsoDuration(video.contentDetails?.duration);
+
   const state: RowState = {
     videoId,
     title,
     publishedAt,
+    durationSeconds,
     link,
     videoType,
     category,
@@ -171,6 +179,7 @@ function renderRow(video: YouTubeVideo): void {
     thumbCell,
     createCell(anchor),
     createCell(publishedAt),
+    createCell(formatDuration(durationSeconds)),
     createCell(linkInput),
     createCell(typeSelect),
     createCell(linkCategoryBox),
@@ -187,6 +196,7 @@ function renderRow(video: YouTubeVideo): void {
   });
   typeSelect.addEventListener("change", () => {
     state.videoType = typeSelect.value;
+    updateTotals();
   });
   linkCategoryBox.addEventListener("change", () => {
     // ONにした瞬間は値を変えない。次にどこかでカテゴリを変更した時だけ連動させる。
@@ -208,6 +218,18 @@ function renderRow(video: YouTubeVideo): void {
   });
 
   els.videoRows.appendChild(tr);
+}
+
+/** 取得した全動画を対象に、配信アーカイブとそれ以外の時間を合算する（送信対象の選択には依存しない） */
+function updateTotals(): void {
+  let streamSeconds = 0;
+  let videoSeconds = 0;
+  for (const row of rows.values()) {
+    if (row.videoType === VIDEO_TYPES.LIVE_ARCHIVE) streamSeconds += row.durationSeconds;
+    else videoSeconds += row.durationSeconds;
+  }
+  els.streamTotal.textContent = formatDuration(streamSeconds);
+  els.videoTotal.textContent = formatDuration(videoSeconds);
 }
 
 function updateSubmitButton(): void {
@@ -283,6 +305,7 @@ async function handleFetch(): Promise<void> {
   } finally {
     els.fetchBtn.disabled = false;
     updateSubmitButton();
+    updateTotals();
   }
 }
 

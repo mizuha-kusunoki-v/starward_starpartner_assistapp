@@ -3,13 +3,23 @@
 import { VIDEO_TYPES, type VideoTypeLabel } from "./messages";
 import type { CategoryRule, YouTubeVideo } from "./types";
 
-/** ISO 8601 duration (e.g. "PT1M30S") を秒数に変換する */
+/** ISO 8601 duration (e.g. "PT1M30S", 24時間以上は "P1DT2H") を秒数に変換する */
 export function parseIsoDuration(duration: string | undefined): number {
   if (!duration) return 0;
-  const match = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(duration);
+  const match = /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(duration);
   if (!match) return 0;
-  const [, h, m, s] = match;
-  return (Number(h) || 0) * 3600 + (Number(m) || 0) * 60 + (Number(s) || 0);
+  const [, d, h, m, s] = match;
+  return (
+    (Number(d) || 0) * 86400 + (Number(h) || 0) * 3600 + (Number(m) || 0) * 60 + (Number(s) || 0)
+  );
+}
+
+/** 秒数を "時:分:秒" (例: 125:03:09) の表記にする */
+export function formatDuration(totalSeconds: number): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours}:${pad(minutes)}:${pad(totalSeconds % 60)}`;
 }
 
 /**
