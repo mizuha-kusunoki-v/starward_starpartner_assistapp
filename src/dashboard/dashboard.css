@@ -4,7 +4,7 @@ h1 { font-size: 18px; margin: 0; }
 .warning { background: #fff3cd; border: 1px solid #ffe69c; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; }
 .fetch-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .fetch-bar label { font-size: 13px; display: flex; align-items: center; gap: 6px; }
-.totals { display: flex; gap: 24px; margin-bottom: 12px; font-size: 13px; }
+.totals { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-bottom: 12px; font-size: 13px; }
 .totals strong { font-size: 18px; margin-left: 6px; }
 .table-actions { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; font-size: 13px; }
 button { padding: 6px 14px; font-size: 14px; cursor: pointer; }
