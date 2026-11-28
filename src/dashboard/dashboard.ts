@@ -53,7 +53,10 @@ const els = {
   submitBtn: requireEl<HTMLButtonElement>("submitBtn"),
   submitStatus: requireEl<HTMLSpanElement>("submitStatus"),
   videoRows: requireEl<HTMLTableSectionElement>("videoRows"),
+  streamCount: requireEl<HTMLElement>("streamCount"),
+  streamDays: requireEl<HTMLElement>("streamDays"),
   streamTotal: requireEl<HTMLElement>("streamTotal"),
+  videoCount: requireEl<HTMLElement>("videoCount"),
   videoTotal: requireEl<HTMLElement>("videoTotal"),
 };
 
@@ -220,15 +223,30 @@ function renderRow(video: YouTubeVideo): void {
   els.videoRows.appendChild(tr);
 }
 
-/** 取得した全動画を対象に、配信アーカイブとそれ以外の時間を合算する（送信対象の選択には依存しない） */
+/**
+ * 取得した全動画を対象に、配信アーカイブとそれ以外(動画)の本数・時間を集計する
+ * （送信対象の選択には依存しない）。配信日数は、同じ日付の配信が複数あっても1日と数える。
+ */
 function updateTotals(): void {
+  let streamCount = 0;
   let streamSeconds = 0;
+  const streamDates = new Set<string>();
+  let videoCount = 0;
   let videoSeconds = 0;
   for (const row of rows.values()) {
-    if (row.videoType === VIDEO_TYPES.LIVE_ARCHIVE) streamSeconds += row.durationSeconds;
-    else videoSeconds += row.durationSeconds;
+    if (row.videoType === VIDEO_TYPES.LIVE_ARCHIVE) {
+      streamCount += 1;
+      streamSeconds += row.durationSeconds;
+      if (row.publishedAt) streamDates.add(row.publishedAt);
+    } else {
+      videoCount += 1;
+      videoSeconds += row.durationSeconds;
+    }
   }
+  els.streamCount.textContent = `${streamCount}本`;
+  els.streamDays.textContent = `${streamDates.size}日`;
   els.streamTotal.textContent = formatDuration(streamSeconds);
+  els.videoCount.textContent = `${videoCount}本`;
   els.videoTotal.textContent = formatDuration(videoSeconds);
 }
 
